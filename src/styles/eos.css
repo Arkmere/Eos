@@ -35,12 +35,51 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: 0;
+  background: var(--bg-dark); /* shows as "sky" behind pitched tile plane */
 }
 
 #map {
   width: 100%;
   height: 100%;
 }
+
+/* ---- User position marker ---- */
+.user-marker {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.user-marker-halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(88,166,255,.1);
+  border: 1.5px solid rgba(88,166,255,.22);
+  animation: halo-pulse 2.5s ease-in-out infinite;
+}
+
+.user-marker-nav {
+  position: relative;
+  z-index: 1;
+  width: 18px;
+  height: 26px;
+  overflow: visible;
+  filter: drop-shadow(0 0 6px rgba(88,166,255,.75));
+  transition: transform .4s ease;
+}
+
+@keyframes halo-pulse {
+  0%, 100% { transform: scale(1);   opacity: .7; }
+  50%       { transform: scale(1.6); opacity: .15; }
+}
+
+/* Suppress MapLibre logo (keep attribution text) */
+.maplibregl-ctrl-logo { display: none !important; }
 
 /* ---- Overlay shell ---- */
 #overlay {

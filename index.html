@@ -9,8 +9,8 @@
   <meta name="theme-color" content="#0e1117" />
   <title>Eos</title>
 
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- MapLibre GL JS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.css" />
 
   <!-- App styles -->
   <link rel="stylesheet" href="src/styles/eos.css" />
@@ -72,8 +72,8 @@
     </div>
   </div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- MapLibre GL JS -->
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.js"></script>
 
   <!-- App modules (order matters — dependencies first) -->
   <script src="src/config.js"></script>
@@ -82,6 +82,7 @@
   <script src="src/logic/geo.js"></script>
   <script src="src/logic/visibility.js"></script>
   <script src="src/logic/indicators.js"></script>
+  <script src="src/map/cameraController.js"></script>
   <script src="src/map.js"></script>
   <script src="src/ui.js"></script>
   <script src="src/app.js"></script>

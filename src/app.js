@@ -76,7 +76,7 @@
       EosMap.init("map", userLat, userLon);
       scheduleFetch();
     } else {
-      EosMap.updateUserPosition(userLat, userLon);
+      EosMap.updateUserPosition(userLat, userLon, userHeading);
     }
 
     if (mode === "nav") refreshIndicators();
@@ -181,17 +181,17 @@
   function setMode(newMode) {
     if (mode === newMode) return;
     mode = newMode;
-    EosMap.setMode(newMode);
     UI.setModeLabel(newMode);
     UI.hidePopup();
 
+    // Camera transition is owned by EosMap.setMode; no separate flyTo needed.
+    EosMap.setMode(newMode, userLat, userLon, userHeading);
+
     if (newMode === "nav") {
       EosMap.clearAirMarkers();
-      if (userLat !== null) EosMap.flyTo(userLat, userLon, CONFIG.DEFAULT_ZOOM_DRIVING);
       refreshIndicators();
     } else {
       UI.clearIndicators();
-      if (userLat !== null) EosMap.flyTo(userLat, userLon, CONFIG.DEFAULT_ZOOM_AIR);
       refreshAirMode();
     }
   }

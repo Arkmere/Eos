@@ -16,10 +16,6 @@ const CONFIG = {
   STALE_THRESHOLD_SECONDS: 20,
   REMOVE_THRESHOLD_SECONDS: 60,
 
-  // Map defaults
-  DEFAULT_ZOOM_DRIVING: 13,
-  DEFAULT_ZOOM_AIR: 10,
-
   // Minimum speed (mph) before we use GPS heading over compass
   GPS_HEADING_MIN_SPEED_MPH: 5,
 };
