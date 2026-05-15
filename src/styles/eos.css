@@ -1,6 +1,7 @@
 /* ---- Reset & base ---- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ---- Night theme (default) ---- */
 :root {
   --bg-dark:        #0e1117;
   --bg-panel:       #161b22;
@@ -17,6 +18,26 @@
   --radius:         10px;
   --radius-lg:      14px;
   --shadow:         0 4px 20px rgba(0,0,0,.6);
+  --bar-top-grad:   rgba(14,17,23,.92);
+  --bar-bot-grad:   rgba(14,17,23,.92);
+}
+
+/* ---- Day theme overrides ---- */
+body[data-theme="day"] {
+  --bg-dark:        #f5f3ee;
+  --bg-panel:       #ffffff;
+  --bg-panel-alt:   #f0ede6;
+  --border:         #d8d4cc;
+  --text-primary:   #1a1a1a;
+  --text-secondary: #555555;
+  --text-muted:     #999999;
+  --accent:         #1a73e8;
+  --btn-bg:         #edeae4;
+  --btn-hover:      #dedad2;
+  --btn-active-bg:  #1a73e8;
+  --shadow:         0 4px 20px rgba(0,0,0,.18);
+  --bar-top-grad:   rgba(245,243,238,.92);
+  --bar-bot-grad:   rgba(245,243,238,.92);
 }
 
 html, body {
@@ -35,7 +56,8 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: var(--bg-dark); /* shows as "sky" behind pitched tile plane */
+  /* background set inline by map.js via NavStyle.skyColor() */
+  background: #0e1117;
 }
 
 #map {
@@ -58,7 +80,7 @@ html, body {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgba(88,166,255,.1);
+  background: rgba(88,166,255,.10);
   border: 1.5px solid rgba(88,166,255,.22);
   animation: halo-pulse 2.5s ease-in-out infinite;
 }
@@ -98,7 +120,7 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px 8px;
-  background: linear-gradient(to bottom, rgba(14,17,23,.92) 80%, transparent);
+  background: linear-gradient(to bottom, var(--bar-top-grad) 80%, transparent);
 }
 
 #top-bar .brand {
@@ -167,10 +189,17 @@ html, body {
 #bottom-bar {
   pointer-events: all;
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px 16px;
+  background: linear-gradient(to top, var(--bar-bot-grad) 80%, transparent);
+}
+
+/* Mode row: NAV | count | AIR */
+#mode-row {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 14px 14px;
-  background: linear-gradient(to top, rgba(14,17,23,.92) 80%, transparent);
   gap: 10px;
 }
 
@@ -190,13 +219,48 @@ html, body {
 }
 
 .mode-btn:active       { background: var(--btn-hover); }
-.mode-btn.active-mode  { background: var(--btn-active-bg); border-color: var(--btn-active-bg); }
+.mode-btn.active-mode  { background: var(--btn-active-bg); border-color: var(--btn-active-bg); color: #fff; }
 
 #aircraft-count {
   flex: 1;
   text-align: center;
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+/* Theme row: Day | Auto | Night */
+#theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: var(--btn-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  align-self: center;
+}
+
+.theme-btn {
+  flex: 1;
+  padding: 6px 14px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  -webkit-appearance: none;
+}
+
+.theme-btn:last-child   { border-right: none; }
+.theme-btn:active       { background: var(--btn-hover); }
+.theme-btn.active-theme {
+  background: var(--btn-active-bg);
+  color: #ffffff;
 }
 
 /* ---- GPS unavailable message ---- */
@@ -286,6 +350,10 @@ html, body {
   text-align: center;
 }
 
+body[data-theme="day"] .indicator-label {
+  background: rgba(245,243,238,.88);
+}
+
 .indicator-label .callsign {
   font-size: 10px;
   font-weight: 700;
@@ -324,6 +392,10 @@ html, body {
   border-radius: var(--radius-sm);
   padding: 1px 5px;
   text-align: center;
+}
+
+body[data-theme="day"] .air-label-box {
+  background: rgba(245,243,238,.88);
 }
 
 .air-label-box .callsign {
@@ -399,7 +471,7 @@ html, body {
 /* ---- Loading spinner ---- */
 #loading {
   position: fixed;
-  bottom: 80px;
+  bottom: 90px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 30;
@@ -433,4 +505,5 @@ html, body {
   .indicator-label .callsign { font-size: 9px; }
   .indicator-label .actype   { font-size: 8px; }
   .indicator-arrow           { font-size: 17px; }
+  .theme-btn                 { padding: 6px 10px; font-size: 10px; }
 }

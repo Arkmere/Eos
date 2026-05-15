@@ -1,9 +1,10 @@
 /**
- * MapLibre GL JS map — replaces the Leaflet renderer.
+ * MapLibre GL JS map — navigation vector basemap.
  *
- * Public interface is unchanged from the Leaflet version so app.js
- * requires only minimal edits (heading param on updateUserPosition,
- * lat/lon/heading params on setMode).
+ * Tile source: OpenFreeMap (openfreemap.org) via NavStyle.getStyle().
+ * Theme switching calls map.setStyle(style, {diff:true}) which reuses
+ * cached tiles (same source URL) and only re-renders paint properties.
+ * maplibregl.Marker objects are DOM elements and survive setStyle unchanged.
  */
 
 const EosMap = (() => {
@@ -13,49 +14,27 @@ const EosMap = (() => {
   let _mode       = "nav";
   let _heading    = 0;
 
-  // CARTO dark raster style — no API key required.
-  // Raster tiles work with MapLibre pitch: the tile plane tilts in 3D space;
-  // the gap above the horizon shows the body background (#0e1117) as sky.
-  const MAP_STYLE = {
-    version: 8,
-    sources: {
-      "carto-dark": {
-        type:       "raster",
-        tiles: [
-          "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        ],
-        tileSize:   512,
-        maxzoom:    19,
-        attribution: '© <a href="https://carto.com/">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-      },
-    },
-    layers: [
-      {
-        id:      "carto-dark-layer",
-        type:    "raster",
-        source:  "carto-dark",
-        minzoom: 0,
-        maxzoom: 20,
-      },
-    ],
-  };
-
   // ---- Init ----
 
-  function init(containerId, lat, lon) {
+  /**
+   * @param {string} containerId  DOM id of the map div.
+   * @param {number} lat          Initial latitude.
+   * @param {number} lon          Initial longitude.
+   * @param {string} [theme]      "day" | "night" — resolved by ThemeManager.
+   */
+  function init(containerId, lat, lon, theme) {
+    const initialTheme = theme || "night";
+
     _map = new maplibregl.Map({
       container:        containerId,
-      style:            MAP_STYLE,
+      style:            NavStyle.getStyle(initialTheme),
       center:           [lon, lat],
       zoom:             16,
       pitch:            60,
       bearing:          0,
       attributionControl: false,
       pitchWithRotate:  true,
-      touchPitch:       false, // disable two-finger pitch in NAV (camera controller owns pitch)
+      touchPitch:       false,
     });
 
     _map.addControl(
@@ -65,12 +44,36 @@ const EosMap = (() => {
 
     _map.on("load", () => {
       CameraController.init(_map);
-      // Apply initial NAV camera once the map is ready
       CameraController.followNav(lat, lon, 0);
     });
 
+    // Apply initial sky colour (visible above horizon at pitch 60°)
+    _applySkyCss(initialTheme);
+
     _userMarker = _createUserMarker(lat, lon);
     return _map;
+  }
+
+  // ---- Theme ----
+
+  /**
+   * Switch the map basemap theme.  Safe to call at any time after init().
+   * The Markers (user arrow, aircraft) are DOM elements and are unaffected
+   * by setStyle; camera state is also preserved.
+   *
+   * @param {"day"|"night"} theme
+   */
+  function setTheme(theme) {
+    if (!_map) return;
+    _map.setStyle(NavStyle.getStyle(theme), { diff: true });
+    _applySkyCss(theme);
+  }
+
+  function _applySkyCss(theme) {
+    // The #map-container background is visible above the horizon when the map
+    // is pitched 60°.  Sync it to the map palette so the sky matches the land.
+    const el = document.getElementById("map-container");
+    if (el) el.style.background = NavStyle.skyColor(theme);
   }
 
   // ---- User marker ----
@@ -86,15 +89,13 @@ const EosMap = (() => {
               stroke-linejoin="round"/>
       </svg>`;
 
-    // pitchAlignment viewport (default): marker stays flat against screen
-    // regardless of map pitch — exactly what a navigation arrow needs.
     return new maplibregl.Marker({ element: el, anchor: "center" })
       .setLngLat([lon, lat])
       .addTo(_map);
   }
 
   function _updateArrow(mode, heading) {
-    const el = _userMarker?.getElement();
+    const el  = _userMarker?.getElement();
     const svg = el?.querySelector(".user-marker-nav");
     if (!svg) return;
     // NAV: map rotates to match heading; arrow always points "up" = ahead.
@@ -106,10 +107,6 @@ const EosMap = (() => {
 
   // ---- Public API ----
 
-  /**
-   * Called on every GPS position fix.
-   * Moves the user marker and advances the NAV camera follow.
-   */
   function updateUserPosition(lat, lon, heading) {
     if (!_map) return;
     _heading = heading ?? _heading;
@@ -118,11 +115,6 @@ const EosMap = (() => {
     if (_mode === "nav") CameraController.followNav(lat, lon, _heading);
   }
 
-  /**
-   * Switch between "nav" and "air" modes.
-   * Triggers an animated camera transition and updates the user arrow.
-   * lat/lon/heading are the current user state — needed for the transition target.
-   */
   function setMode(mode, lat, lon, heading) {
     _mode    = mode;
     _heading = heading ?? _heading;
@@ -174,12 +166,11 @@ const EosMap = (() => {
     _airMarkers = [];
   }
 
-  // Kept for interface compatibility; camera transitions are normally owned by setMode.
   function flyTo(lat, lon, zoom) {
     if (_map) _map.easeTo({ center: [lon, lat], zoom, duration: 800 });
   }
 
-  return { init, updateUserPosition, setMode, getMap, renderAirMarkers, clearAirMarkers, flyTo };
+  return { init, setTheme, updateUserPosition, setMode, getMap, renderAirMarkers, clearAirMarkers, flyTo };
 })();
 
 if (typeof module !== "undefined") module.exports = EosMap;

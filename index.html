@@ -15,7 +15,7 @@
   <!-- App styles -->
   <link rel="stylesheet" href="src/styles/eos.css" />
 </head>
-<body>
+<body data-theme="night">
 
   <!-- Map layer (below everything) -->
   <div id="map-container">
@@ -66,9 +66,18 @@
 
     <!-- Bottom bar -->
     <div id="bottom-bar">
-      <button class="mode-btn active-mode" id="btn-nav">NAV</button>
-      <div id="aircraft-count">No aircraft in range</div>
-      <button class="mode-btn" id="btn-air">AIR</button>
+      <!-- Mode row -->
+      <div id="mode-row">
+        <button class="mode-btn active-mode" id="btn-nav">NAV</button>
+        <div id="aircraft-count">No aircraft in range</div>
+        <button class="mode-btn" id="btn-air">AIR</button>
+      </div>
+      <!-- Theme row -->
+      <div id="theme-row">
+        <button class="theme-btn" id="btn-theme-day">Day</button>
+        <button class="theme-btn active-theme" id="btn-theme-auto">Auto</button>
+        <button class="theme-btn" id="btn-theme-night">Night</button>
+      </div>
     </div>
   </div>
 
@@ -82,6 +91,8 @@
   <script src="src/logic/geo.js"></script>
   <script src="src/logic/visibility.js"></script>
   <script src="src/logic/indicators.js"></script>
+  <script src="src/map/navStyle.js"></script>
+  <script src="src/map/themeManager.js"></script>
   <script src="src/map/cameraController.js"></script>
   <script src="src/map.js"></script>
   <script src="src/ui.js"></script>

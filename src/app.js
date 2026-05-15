@@ -1,5 +1,5 @@
 /**
- * Eos V1 — main application controller.
+ * Eos — main application controller.
  */
 
 (function () {
@@ -21,12 +21,41 @@
   function init() {
     AdsbExchangeClient.init(CONFIG);
 
+    // Resolve initial theme before map init so the first render uses the
+    // correct palette.  ThemeManager.init() also registers the OS media-query
+    // listener for Auto mode.
+    const initialTheme = ThemeManager.init(_onThemeChange);
+    _applyThemeToDom(initialTheme);
+
     showConfigWarningIfNeeded();
     startGps();
     bindButtons();
     UI.setModeLabel("nav");
     UI.setAdsbStatus("error", "ADS-B");
     UI.setLoading(false);
+  }
+
+  // ---- Theme ----
+
+  function _onThemeChange(theme) {
+    EosMap.setTheme(theme);
+    _applyThemeToDom(theme);
+  }
+
+  function _applyThemeToDom(theme) {
+    document.body.dataset.theme = theme; // triggers CSS variable overrides
+
+    // Update PWA status-bar colour
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = theme === "day" ? "#f5f3ee" : "#0e1117";
+
+    // Reflect active state on theme buttons
+    ["day", "auto", "night"].forEach(t => {
+      const btn = document.getElementById(`btn-theme-${t}`);
+      if (!btn) return;
+      const active = (t === ThemeManager.getPreference());
+      btn.classList.toggle("active-theme", active);
+    });
   }
 
   function showConfigWarningIfNeeded() {
@@ -44,14 +73,12 @@
       return;
     }
 
-    // First fix
     navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
       enableHighAccuracy: true,
       timeout: 10000,
       maximumAge: 5000,
     });
 
-    // Continuous watch
     gpsWatchId = navigator.geolocation.watchPosition(onGpsSuccess, onGpsError, {
       enableHighAccuracy: true,
       timeout: 15000,
@@ -64,16 +91,17 @@
 
     userLat = pos.coords.latitude;
     userLon = pos.coords.longitude;
-    userSpeedMph = (pos.coords.speed || 0) * 2.23694; // m/s → mph
+    userSpeedMph = (pos.coords.speed || 0) * 2.23694;
 
-    // Use GPS course when moving, else keep last heading
-    if (pos.coords.heading != null && !isNaN(pos.coords.heading) && userSpeedMph > CONFIG.GPS_HEADING_MIN_SPEED_MPH) {
+    if (pos.coords.heading != null && !isNaN(pos.coords.heading)
+        && userSpeedMph > CONFIG.GPS_HEADING_MIN_SPEED_MPH) {
       userHeading = pos.coords.heading;
     }
 
     if (!window._mapInitialised) {
       window._mapInitialised = true;
-      EosMap.init("map", userLat, userLon);
+      // Pass the already-resolved theme so the first render is correct.
+      EosMap.init("map", userLat, userLon, ThemeManager.getResolved());
       scheduleFetch();
     } else {
       EosMap.updateUserPosition(userLat, userLon, userHeading);
@@ -86,10 +114,9 @@
     console.warn("GPS error:", err.message);
     if (userLat === null) {
       UI.showGpsMessage(true);
-      // Still init map at a generic position so the UI is functional
       if (!window._mapInitialised) {
         window._mapInitialised = true;
-        EosMap.init("map", 51.5, -0.12); // London as fallback
+        EosMap.init("map", 51.5, -0.12, ThemeManager.getResolved());
       }
     }
   }
@@ -124,7 +151,6 @@
       UI.showConfigBanner(false);
     }
 
-    // Merge new data; keep aircraft whose last seen is still fresh
     aircraftList = result.aircraft.filter(
       a => a.lastSeenSeconds < CONFIG.REMOVE_THRESHOLD_SECONDS
     );
@@ -184,7 +210,6 @@
     UI.setModeLabel(newMode);
     UI.hidePopup();
 
-    // Camera transition is owned by EosMap.setMode; no separate flyTo needed.
     EosMap.setMode(newMode, userLat, userLon, userHeading);
 
     if (newMode === "nav") {
@@ -202,12 +227,18 @@
     document.getElementById("btn-air")?.addEventListener("click", () => setMode("air"));
     document.getElementById("btn-nav")?.addEventListener("click", () => setMode("nav"));
 
-    // Re-render indicators on resize (viewport changes edge positions)
+    // Theme buttons
+    ["day", "auto", "night"].forEach(t => {
+      document.getElementById(`btn-theme-${t}`)?.addEventListener("click", () => {
+        ThemeManager.setPreference(t);
+        _applyThemeToDom(ThemeManager.getResolved());
+      });
+    });
+
     window.addEventListener("resize", () => {
       if (mode === "nav") refreshIndicators();
     });
 
-    // Dismiss popup on map tap
     document.getElementById("map")?.addEventListener("click", () => UI.hidePopup());
   }
 
