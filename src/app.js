@@ -28,11 +28,12 @@
   function init() {
     AdsbExchangeClient.init(CONFIG);
 
-    // Resolve initial theme before map init so the first render uses the
-    // correct palette.  ThemeManager.init() also registers the OS media-query
-    // listener for Auto mode.
-    const initialTheme = ThemeManager.init(_onThemeChange);
-    _applyThemeToDom(initialTheme);
+    // Theme must be initialised before the map so EosMap.init() reads the
+    // correct effective theme when building its initial map style.
+    ThemeController.init(function (theme) {
+      EosMap.setTheme(theme);
+    });
+    _syncThemePicker();
 
     showConfigWarningIfNeeded();
     startGps();
@@ -287,6 +288,16 @@
     }
   }
 
+  // ---- Theme picker sync ----
+
+  function _syncThemePicker() {
+    const current = ThemeController.getMode();
+    ["day", "night", "auto"].forEach(function (m) {
+      const btn = document.getElementById("theme-btn-" + m);
+      if (btn) btn.classList.toggle("active", m === current);
+    });
+  }
+
   // ---- Button bindings ----
 
   function bindButtons() {
@@ -303,6 +314,15 @@
       });
     });
 
+    // Theme picker buttons
+    ["day", "night", "auto"].forEach(function (m) {
+      document.getElementById("theme-btn-" + m)?.addEventListener("click", function () {
+        ThemeController.setMode(m);
+        _syncThemePicker();
+      });
+    });
+
+    // Re-render indicators on resize (viewport changes edge positions)
     window.addEventListener("resize", () => {
       if (mode === "nav") refreshIndicators();
     });
