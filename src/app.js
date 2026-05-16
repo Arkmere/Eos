@@ -34,6 +34,7 @@
     const initialTheme = ThemeManager.init(_onThemeChange);
     _applyThemeToDom(initialTheme);
 
+    document.body.dataset.mode = "nav";
     showConfigWarningIfNeeded();
     startGps();
     bindButtons();
@@ -247,10 +248,23 @@
     document.getElementById("route-dist-text").textContent = _fmtDistance(activeRoute.distanceMeters);
     document.getElementById("route-eta-text").textContent  = _fmtDuration(activeRoute.durationSeconds);
     document.getElementById("route-card").classList.remove("hidden");
+    _showGuidanceCard();
   }
 
   function _hideRouteCard() {
     document.getElementById("route-card")?.classList.add("hidden");
+    _hideGuidanceCard();
+  }
+
+  function _showGuidanceCard() {
+    if (mode !== "nav" || !activeRoute) return;
+    const dest = routeDestName || "destination";
+    document.getElementById("ngc-dest-text").textContent = "towards " + dest;
+    document.getElementById("nav-guidance-card").classList.remove("hidden");
+  }
+
+  function _hideGuidanceCard() {
+    document.getElementById("nav-guidance-card")?.classList.add("hidden");
   }
 
   function _fmtDistance(meters) {
@@ -273,6 +287,7 @@
   function setMode(newMode) {
     if (mode === newMode) return;
     mode = newMode;
+    document.body.dataset.mode = newMode;
     UI.setModeLabel(newMode);
     UI.hidePopup();
 
@@ -281,9 +296,11 @@
     if (newMode === "nav") {
       EosMap.clearAirMarkers();
       refreshIndicators();
+      if (activeRoute) _showGuidanceCard();
     } else {
       UI.clearIndicators();
       refreshAirMode();
+      _hideGuidanceCard();
     }
   }
 

@@ -17,15 +17,15 @@ const CameraController = (() => {
   // ---- Camera presets ----
 
   const _NAV_DEFAULTS = {
-    pitch:               63,   // stronger forward lean than 60° — reduces "drone" feel
-    zoom:                17,   // tighter zoom, road detail clearly visible
+    pitch:               72,   // aggressive forward lean — windshield view
+    zoom:                19,   // tight street-level zoom
     transitionMs:        900,
-    followMs:            400,  // snappier continuous follow
+    followMs:            300,  // snappy continuous follow
     // Top-padding as fraction of container height.
-    // User renders at: 0.5 + topPaddingFraction/2 from top.
-    // 0.55 → ~77.5 % from top — lower-centre driving anchor.
-    topPaddingFraction:  0.55,
-    smoothAlpha:         0.12, // slightly smoother bearing; lower = smoother/laggier
+    // 0.73 → user marker sits ~86 % from top — very low screen anchor.
+    topPaddingFraction:  0.73,
+    smoothAlpha:         0.13, // heading low-pass; lower = smoother/laggier
+    lookAheadMeters:     120,  // project camera centre ahead of vehicle
   };
 
   const AIR = {
@@ -72,6 +72,19 @@ const CameraController = (() => {
     return _currentBearing;
   }
 
+  // Project a point ahead of the vehicle along its heading.
+  function _projectAhead(lat, lon, heading, meters) {
+    if (!meters) return { lat, lon };
+    const R   = 6371000;
+    const d   = meters / R;
+    const θ   = (heading * Math.PI) / 180;
+    const φ1  = (lat * Math.PI) / 180;
+    const λ1  = (lon * Math.PI) / 180;
+    const φ2  = Math.asin(Math.sin(φ1) * Math.cos(d) + Math.cos(φ1) * Math.sin(d) * Math.cos(θ));
+    const λ2  = λ1 + Math.atan2(Math.sin(θ) * Math.sin(d) * Math.cos(φ1), Math.cos(d) - Math.sin(φ1) * Math.sin(φ2));
+    return { lat: φ2 * 180 / Math.PI, lon: λ2 * 180 / Math.PI };
+  }
+
   // Cubic ease-out — fast start, gentle arrival. Good for continuous following.
   function _easeOut(t) { return 1 - Math.pow(1 - t, 3); }
 
@@ -106,11 +119,13 @@ const CameraController = (() => {
    */
   function refreshNavCamera(lat, lon, heading, duration) {
     if (!_map) return;
+    const cfg    = _navConfig();
+    const target = _projectAhead(lat, lon, heading || _currentBearing, cfg.lookAheadMeters);
     _map.easeTo({
-      center:   [lon, lat],
+      center:   [target.lon, target.lat],
       bearing:  _currentBearing,
-      pitch:    _navConfig().pitch,
-      zoom:     _navConfig().zoom,
+      pitch:    cfg.pitch,
+      zoom:     cfg.zoom,
       padding:  _navPadding(),
       duration: duration !== undefined ? duration : 0,
     });
@@ -124,10 +139,12 @@ const CameraController = (() => {
    */
   function followNav(lat, lon, heading) {
     if (!_map) return;
-    const cfg = _navConfig();
+    const cfg    = _navConfig();
+    const bear   = _smoothBearing(heading);
+    const target = _projectAhead(lat, lon, bear, cfg.lookAheadMeters);
     _map.easeTo({
-      center:   [lon, lat],
-      bearing:  _smoothBearing(heading),
+      center:   [target.lon, target.lat],
+      bearing:  bear,
       pitch:    cfg.pitch,
       zoom:     cfg.zoom,
       padding:  _navPadding(),
@@ -142,10 +159,11 @@ const CameraController = (() => {
    */
   function transitionToNav(lat, lon, heading) {
     if (!_map) return;
-    const cfg = _navConfig();
+    const cfg    = _navConfig();
     _currentBearing = heading; // reset — don't interpolate from stale smoothed value
+    const target = _projectAhead(lat, lon, heading, cfg.lookAheadMeters);
     _map.easeTo({
-      center:   [lon, lat],
+      center:   [target.lon, target.lat],
       bearing:  heading,
       pitch:    cfg.pitch,
       zoom:     cfg.zoom,

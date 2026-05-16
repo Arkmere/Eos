@@ -85,13 +85,23 @@
   <!-- Developer: camera tuning toggle -->
   <button id="btn-cam-dev" title="Camera tuning panel (dev)">CAM</button>
 
-  <!-- Route summary card (shown when a route is active) -->
+  <!-- Navigation guidance card (top — shown in NAV mode with active route) -->
+  <div id="nav-guidance-card" class="hidden">
+    <div class="ngc-maneuver">↑</div>
+    <div class="ngc-body">
+      <div class="ngc-action" id="ngc-action-text">Continue</div>
+      <div class="ngc-dest" id="ngc-dest-text">towards Liverpool Airport</div>
+    </div>
+  </div>
+
+  <!-- ETA card (bottom — shown when a route is active) -->
   <div id="route-card" class="hidden">
-    <div class="route-card-icon">↗</div>
-    <div class="route-card-body">
-      <div class="route-card-dest" id="route-dest-name"></div>
-      <div class="route-card-stats">
-        <span id="route-dist-text"></span><span class="route-sep"> · </span><span id="route-eta-text"></span>
+    <div class="route-eta-col">
+      <div class="route-eta-time" id="route-eta-text">—</div>
+      <div class="route-eta-sub">
+        <span id="route-dist-text"></span>
+        <span class="route-sep"> · </span>
+        <span id="route-dest-name"></span>
       </div>
     </div>
     <button class="route-card-clear" id="btn-clear-route" title="Clear route">✕</button>
