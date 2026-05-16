@@ -16,16 +16,16 @@ const CameraController = (() => {
 
   // ---- Camera presets ----
 
-  const NAV = {
-    pitch:           63,   // stronger forward lean than 60° — reduces "drone" feel
-    zoom:            17,   // tighter zoom, road detail clearly visible
-    transitionMs:    900,
-    followMs:        400,  // snappier continuous follow
+  const _NAV_DEFAULTS = {
+    pitch:               63,   // stronger forward lean than 60° — reduces "drone" feel
+    zoom:                17,   // tighter zoom, road detail clearly visible
+    transitionMs:        900,
+    followMs:            400,  // snappier continuous follow
     // Top-padding as fraction of container height.
     // User renders at: 0.5 + topPaddingFraction/2 from top.
     // 0.55 → ~77.5 % from top — lower-centre driving anchor.
-    topPaddingFraction: 0.55,
-    smoothAlpha:     0.12, // slightly smoother bearing; lower = smoother/laggier
+    topPaddingFraction:  0.55,
+    smoothAlpha:         0.12, // slightly smoother bearing; lower = smoother/laggier
   };
 
   const AIR = {
@@ -33,6 +33,12 @@ const CameraController = (() => {
     zoom:         10,
     transitionMs: 900,
   };
+
+  let _devOverrides = {};
+
+  function _navConfig() {
+    return Object.assign({}, _NAV_DEFAULTS, _devOverrides);
+  }
 
   // ---- Init ----
 
@@ -47,8 +53,9 @@ const CameraController = (() => {
   }
 
   function _navPadding() {
+    const cfg = _navConfig();
     return {
-      top:    Math.round(_containerH() * NAV.topPaddingFraction),
+      top:    Math.round(_containerH() * cfg.topPaddingFraction),
       bottom: 0,
       left:   0,
       right:  0,
@@ -57,10 +64,11 @@ const CameraController = (() => {
 
   // Circular first-order low-pass — handles 0 / 360 wrap correctly.
   function _smoothBearing(target) {
+    const cfg = _navConfig();
     let delta = target - _currentBearing;
     if (delta >  180) delta -= 360;
     if (delta < -180) delta += 360;
-    _currentBearing = (_currentBearing + NAV.smoothAlpha * delta + 360) % 360;
+    _currentBearing = (_currentBearing + cfg.smoothAlpha * delta + 360) % 360;
     return _currentBearing;
   }
 
@@ -74,6 +82,24 @@ const CameraController = (() => {
       : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
+  // ---- Dev config API ----
+
+  function getNavCameraDefaults() {
+    return Object.assign({}, _NAV_DEFAULTS);
+  }
+
+  function getNavCameraConfig() {
+    return _navConfig();
+  }
+
+  function setNavCameraConfig(partial) {
+    Object.assign(_devOverrides, partial);
+  }
+
+  function resetNavCameraConfig() {
+    _devOverrides = {};
+  }
+
   // ---- Public API ----
 
   /**
@@ -82,13 +108,14 @@ const CameraController = (() => {
    */
   function followNav(lat, lon, heading) {
     if (!_map) return;
+    const cfg = _navConfig();
     _map.easeTo({
       center:   [lon, lat],
       bearing:  _smoothBearing(heading),
-      pitch:    NAV.pitch,
-      zoom:     NAV.zoom,
+      pitch:    cfg.pitch,
+      zoom:     cfg.zoom,
       padding:  _navPadding(),
-      duration: NAV.followMs,
+      duration: cfg.followMs,
       easing:   _easeOut,
     });
   }
@@ -99,14 +126,15 @@ const CameraController = (() => {
    */
   function transitionToNav(lat, lon, heading) {
     if (!_map) return;
+    const cfg = _navConfig();
     _currentBearing = heading; // reset — don't interpolate from stale smoothed value
     _map.easeTo({
       center:   [lon, lat],
       bearing:  heading,
-      pitch:    NAV.pitch,
-      zoom:     NAV.zoom,
+      pitch:    cfg.pitch,
+      zoom:     cfg.zoom,
       padding:  _navPadding(),
-      duration: NAV.transitionMs,
+      duration: cfg.transitionMs,
       easing:   _easeInOut,
     });
   }
@@ -128,7 +156,16 @@ const CameraController = (() => {
     });
   }
 
-  return { init, followNav, transitionToNav, transitionToAir };
+  return {
+    init,
+    followNav,
+    transitionToNav,
+    transitionToAir,
+    getNavCameraDefaults,
+    getNavCameraConfig,
+    setNavCameraConfig,
+    resetNavCameraConfig,
+  };
 })();
 
 if (typeof module !== "undefined") module.exports = CameraController;

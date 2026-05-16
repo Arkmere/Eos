@@ -322,6 +322,10 @@
       });
     });
 
+    // Camera dev panel
+    const camDevBtn = document.getElementById("btn-cam-dev");
+    if (camDevBtn) CameraDevPanel.init(camDevBtn);
+
     // Re-render indicators on resize (viewport changes edge positions)
     window.addEventListener("resize", () => {
       if (mode === "nav") refreshIndicators();
