@@ -100,6 +100,22 @@ const CameraController = (() => {
     _devOverrides = {};
   }
 
+  /**
+   * Immediately apply current NAV config to the map at the given position.
+   * duration defaults to 0 (instant) so slider drags feel live.
+   */
+  function refreshNavCamera(lat, lon, heading, duration) {
+    if (!_map) return;
+    _map.easeTo({
+      center:   [lon, lat],
+      bearing:  _currentBearing,
+      pitch:    _navConfig().pitch,
+      zoom:     _navConfig().zoom,
+      padding:  _navPadding(),
+      duration: duration !== undefined ? duration : 0,
+    });
+  }
+
   // ---- Public API ----
 
   /**
@@ -165,6 +181,7 @@ const CameraController = (() => {
     getNavCameraConfig,
     setNavCameraConfig,
     resetNavCameraConfig,
+    refreshNavCamera,
   };
 })();
 

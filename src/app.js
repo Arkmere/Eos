@@ -324,7 +324,9 @@
 
     // Camera dev panel
     const camDevBtn = document.getElementById("btn-cam-dev");
-    if (camDevBtn) CameraDevPanel.init(camDevBtn);
+    if (camDevBtn) CameraDevPanel.init(camDevBtn, {
+      getCurrentNavState: () => ({ mode, lat: userLat, lon: userLon, heading: userHeading }),
+    });
 
     // Re-render indicators on resize (viewport changes edge positions)
     window.addEventListener("resize", () => {

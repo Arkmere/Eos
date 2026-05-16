@@ -4,6 +4,7 @@ const CameraDevPanel = (() => {
   let _visible = false;
   let _panel   = null;
   let _toggleBtn = null;
+  let _getCurrentNavState = null;
 
   const FIELDS = [
     { key: 'pitch',              label: 'Pitch',          min: 45,   max: 75,   step: 1,    dec: 0 },
@@ -76,6 +77,7 @@ const CameraDevPanel = (() => {
         readout.textContent = val.toFixed(f.dec);
         CameraController.setNavCameraConfig({ [f.key]: val });
         _save({ [f.key]: val });
+        _applyIfNav();
       });
 
       row.appendChild(label);
@@ -102,6 +104,7 @@ const CameraDevPanel = (() => {
         sl.value = defaults[f.key];
         vl.textContent = Number(defaults[f.key]).toFixed(f.dec);
       });
+      _applyIfNav(80);
     });
 
     const copyBtn = document.createElement('button');
@@ -126,6 +129,13 @@ const CameraDevPanel = (() => {
     return panel;
   }
 
+  function _applyIfNav(duration) {
+    if (!_getCurrentNavState) return;
+    const state = _getCurrentNavState();
+    if (state.mode !== 'nav' || state.lat === null) return;
+    CameraController.refreshNavCamera(state.lat, state.lon, state.heading, duration !== undefined ? duration : 0);
+  }
+
   function show() {
     if (!_panel) {
       _panel = _buildPanel();
@@ -146,8 +156,11 @@ const CameraDevPanel = (() => {
     _visible ? hide() : show();
   }
 
-  function init(toggleBtnEl) {
+  function init(toggleBtnEl, options) {
     _toggleBtn = toggleBtnEl;
+    if (options && typeof options.getCurrentNavState === 'function') {
+      _getCurrentNavState = options.getCurrentNavState;
+    }
     const saved = _load();
     if (Object.keys(saved).length > 0) {
       CameraController.setNavCameraConfig(saved);
