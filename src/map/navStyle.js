@@ -178,13 +178,13 @@ const NavStyle = (() => {
         source: src, "source-layer": "landcover",
         filter: ["in", ["get", "class"],
           ["literal", ["park", "national_park", "garden", "grass", "scrub"]]],
-        paint: { "fill-color": p.park, "fill-opacity": 0.75 },
+        paint: { "fill-color": p.park, "fill-opacity": 0.35 },
       },
       {
         id: "landcover-forest", type: "fill",
         source: src, "source-layer": "landcover",
         filter: ["in", ["get", "class"], ["literal", ["wood", "forest"]]],
-        paint: { "fill-color": p.forest, "fill-opacity": 0.70 },
+        paint: { "fill-color": p.forest, "fill-opacity": 0.40 },
       },
       {
         id: "landcover-grass", type: "fill",
@@ -202,7 +202,7 @@ const NavStyle = (() => {
       {
         id: "park-fill", type: "fill",
         source: src, "source-layer": "park",
-        paint: { "fill-color": p.park, "fill-opacity": 0.55 },
+        paint: { "fill-color": p.park, "fill-opacity": 0.25 },
       },
 
       // ── Land use (urban) ─────────────────────────────────────────────────
@@ -211,11 +211,10 @@ const NavStyle = (() => {
         source: src, "source-layer": "landuse",
         filter: ["in", ["get", "class"],
           ["literal", ["residential", "suburb", "neighbourhood"]]],
-        // Near-invisible — suppressed so the route dominates.
-        paint: { "fill-color": p.residential, "fill-opacity": 0.06 },
+        paint: { "fill-color": p.residential, "fill-opacity": 0 },
       },
 
-      // ── Buildings ────────────────────────────────────────────────────────
+      // ── Buildings — hidden; route corridor is the scene ──────────────────
       {
         id: "building-fill", type: "fill",
         source: src, "source-layer": "building",
@@ -223,8 +222,7 @@ const NavStyle = (() => {
         paint: {
           "fill-color": p.buildings,
           "fill-antialias": true,
-          // Outline suppressed — reduces map clutter in nav view.
-          "fill-opacity": 0.15,
+          "fill-opacity": 0,
         },
       },
 
@@ -249,7 +247,7 @@ const NavStyle = (() => {
         paint: {
           "line-color": p.minorCasing,
           "line-width": _rampW(12, 0.8, 15, 2, 18, 4),
-          "line-opacity": 0.20,  // minor roads heavily faded — route dominates
+          "line-opacity": 0,  // minor roads fully suppressed — route dominates
         },
       },
       {
@@ -324,7 +322,7 @@ const NavStyle = (() => {
         paint: {
           "line-color": p.minor,
           "line-width": _rampW(12, 0.5, 15, 2.5, 18, 8),
-          "line-opacity": 0.22,  // minor roads heavily faded
+          "line-opacity": 0,  // minor roads fully suppressed
         },
       },
       {
@@ -488,7 +486,7 @@ const NavStyle = (() => {
           "text-color": p.labelSecondary,
           "text-halo-color": p.background,
           "text-halo-width": 1.5,
-          "text-opacity": 0.5,
+          "text-opacity": 0,
         },
       },
 

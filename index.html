@@ -103,7 +103,10 @@
       <!-- ETA card (bottom — shown when a route is active) -->
       <div id="route-card" class="hidden">
         <div class="route-eta-col">
-          <div class="route-eta-time" id="route-eta-text">—</div>
+          <div class="route-eta-row">
+            <div class="route-eta-time" id="route-eta-text">—</div>
+            <div class="route-eta-arrival" id="route-eta-arrival"></div>
+          </div>
           <div class="route-eta-sub">
             <span id="route-dist-text"></span>
             <span class="route-sep"> · </span>
@@ -122,6 +125,7 @@
   <!-- App modules (order matters — dependencies first) -->
   <script src="src/routing/routingProvider.js"></script>
   <script src="src/routing/osrmProvider.js"></script>
+  <script src="src/routing/routeGeometry.js"></script>
   <script src="src/config.js"></script>
   <script src="src/data/normaliseAircraft.js"></script>
   <script src="src/data/adsbExchangeClient.js"></script>

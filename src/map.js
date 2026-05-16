@@ -13,6 +13,7 @@ const EosMap = (() => {
   let _airMarkers            = [];
   let _mode                  = "nav";
   let _heading               = 0;
+  let _speedMph              = 0;
   let _mapLoaded             = false;
   let _pendingRoute          = null;  // geometry queued before first map load
   let _currentRouteGeometry  = null;  // retained so theme changes can re-apply it
@@ -32,7 +33,7 @@ const EosMap = (() => {
       container:        containerId,
       style:            NavStyle.getStyle(initialTheme),
       center:           [lon, lat],
-      zoom:             19,   // matches NAV preset — avoids zoom flash on first followNav
+      zoom:             18.5, // matches NAV preset — avoids zoom flash on first followNav
       pitch:            72,   // matches NAV preset pitch
       bearing:          0,
       attributionControl: false,
@@ -48,7 +49,7 @@ const EosMap = (() => {
     _map.on("load", () => {
       _mapLoaded = true;
       CameraController.init(_map);
-      CameraController.followNav(lat, lon, 0);
+      CameraController.followNav(lat, lon, 0, 0);
       _initRouteLayer();
       if (_pendingRoute) {
         _applyRoute(_pendingRoute);
@@ -56,10 +57,8 @@ const EosMap = (() => {
       }
     });
 
-    // Temporary diagnostic logging — remove once tiles are confirmed rendering.
     _map.on("error", e => console.error("[MapLibre error]", e.error || e));
 
-    // Apply initial sky colour (visible above horizon at pitch 60°)
     _applySkyCss(initialTheme);
 
     _userMarker = _createUserMarker(lat, lon);
@@ -91,7 +90,7 @@ const EosMap = (() => {
 
   function _applySkyCss(theme) {
     // The #map-container background is visible above the horizon when the map
-    // is pitched 60°.  Sync it to the map palette so the sky matches the land.
+    // is pitched — sync it to the map palette so the sky matches.
     const el = document.getElementById("map-container");
     if (el) el.style.background = NavStyle.skyColor(theme);
   }
@@ -104,13 +103,27 @@ const EosMap = (() => {
       data: { type: "FeatureCollection", features: [] },
     });
 
-    // White casing — drawn first, wider, gives the blue line a clean border.
+    // Soft outer glow — drawn first, widest, low opacity cyan halo.
+    _map.addLayer({
+      id:     "route-glow",
+      type:   "line",
+      source: "route",
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint:  {
+        "line-color":   "#4fc3f7",
+        "line-width":   38,
+        "line-opacity": 0.18,
+        "line-blur":    4,
+      },
+    });
+
+    // White casing — drawn second, wider, gives the blue line a clean border.
     _map.addLayer({
       id:     "route-casing",
       type:   "line",
       source: "route",
       layout: { "line-join": "round", "line-cap": "round" },
-      paint:  { "line-color": "#ffffff", "line-width": 22, "line-opacity": 1 },
+      paint:  { "line-color": "#ffffff", "line-width": 28, "line-opacity": 1 },
     });
 
     // Navigation blue — dominant, route-first visual hierarchy.
@@ -119,7 +132,7 @@ const EosMap = (() => {
       type:   "line",
       source: "route",
       layout: { "line-join": "round", "line-cap": "round" },
-      paint:  { "line-color": "#1a73e8", "line-width": 14, "line-opacity": 1 },
+      paint:  { "line-color": "#1a73e8", "line-width": 17, "line-opacity": 1 },
     });
   }
 
@@ -133,6 +146,7 @@ const EosMap = (() => {
 
   function showRoute(geometry) {
     _currentRouteGeometry = geometry;
+    CameraController.setRouteActive(geometry);
     if (!_mapLoaded) { _pendingRoute = geometry; return; }
     if (!_map.getSource("route")) _initRouteLayer();
     _applyRoute(geometry);
@@ -141,6 +155,7 @@ const EosMap = (() => {
   function clearRoute() {
     _currentRouteGeometry = null;
     _pendingRoute         = null;
+    CameraController.clearRoute();
     if (!_mapLoaded || !_map.getSource("route")) return;
     _map.getSource("route").setData({ type: "FeatureCollection", features: [] });
   }
@@ -176,12 +191,13 @@ const EosMap = (() => {
 
   // ---- Public API ----
 
-  function updateUserPosition(lat, lon, heading) {
+  function updateUserPosition(lat, lon, heading, speedMph) {
     if (!_map) return;
-    _heading = heading ?? _heading;
+    _heading  = heading ?? _heading;
+    _speedMph = speedMph ?? _speedMph;
     _userMarker.setLngLat([lon, lat]);
     _updateArrow(_mode, _heading);
-    if (_mode === "nav") CameraController.followNav(lat, lon, _heading);
+    if (_mode === "nav") CameraController.followNav(lat, lon, _heading, _speedMph);
   }
 
   function setMode(mode, lat, lon, heading) {
@@ -239,7 +255,18 @@ const EosMap = (() => {
     if (_map) _map.easeTo({ center: [lon, lat], zoom, duration: 800 });
   }
 
-  return { init, setTheme, updateUserPosition, setMode, getMap, renderAirMarkers, clearAirMarkers, flyTo, showRoute, clearRoute };
+  return {
+    init,
+    setTheme,
+    updateUserPosition,
+    setMode,
+    getMap,
+    renderAirMarkers,
+    clearAirMarkers,
+    flyTo,
+    showRoute,
+    clearRoute,
+  };
 })();
 
 if (typeof module !== "undefined") module.exports = EosMap;

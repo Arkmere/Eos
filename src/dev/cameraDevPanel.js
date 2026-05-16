@@ -7,12 +7,15 @@ const CameraDevPanel = (() => {
   let _getCurrentNavState = null;
 
   const FIELDS = [
-    { key: 'pitch',              label: 'Pitch',          min: 45,   max: 80,   step: 1,    dec: 0 },
-    { key: 'zoom',               label: 'Zoom',           min: 14,   max: 21,   step: 0.1,  dec: 1 },
-    { key: 'topPaddingFraction', label: 'Top padding',    min: 0.30, max: 0.85, step: 0.01, dec: 2 },
-    { key: 'followMs',           label: 'Follow ms',      min: 100,  max: 1200, step: 10,   dec: 0 },
-    { key: 'smoothAlpha',        label: 'Bearing smooth', min: 0.02, max: 0.40, step: 0.01, dec: 2 },
-    { key: 'lookAheadMeters',    label: 'Look-ahead m',   min: 0,    max: 300,  step: 5,    dec: 0 },
+    { key: 'pitch',                label: 'Pitch',             min: 45,   max: 80,   step: 1,    dec: 0 },
+    { key: 'zoom',                 label: 'Zoom',              min: 14,   max: 21,   step: 0.1,  dec: 1 },
+    { key: 'topPaddingFraction',   label: 'Top padding',       min: 0.30, max: 0.85, step: 0.01, dec: 2 },
+    { key: 'followMs',             label: 'Follow ms',         min: 100,  max: 1200, step: 10,   dec: 0 },
+    { key: 'smoothAlpha',          label: 'Bearing smooth',    min: 0.02, max: 0.40, step: 0.01, dec: 2 },
+    { key: 'lookAheadMeters',      label: 'Look-ahead m',      min: 0,    max: 300,  step: 5,    dec: 0 },
+    { key: 'routeLookAheadMeters', label: 'Route look-ahead m',min: 50,   max: 1200, step: 10,   dec: 0 },
+    { key: 'minLookAheadMeters',   label: 'Min look-ahead m',  min: 20,   max: 200,  step: 5,    dec: 0 },
+    { key: 'maxLookAheadMeters',   label: 'Max look-ahead m',  min: 200,  max: 2000, step: 50,   dec: 0 },
   ];
 
   function _load() {

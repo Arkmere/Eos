@@ -121,7 +121,7 @@
       EosMap.init("map", userLat, userLon, ThemeManager.getResolved());
       scheduleFetch();
     } else {
-      EosMap.updateUserPosition(userLat, userLon, userHeading);
+      EosMap.updateUserPosition(userLat, userLon, userHeading, userSpeedMph);
     }
 
     if (mode === "nav") refreshIndicators();
@@ -241,6 +241,7 @@
     activeRoute   = route;
     routeDestName = TEST_DEST.name;
     EosMap.showRoute(route.geometry);
+    document.body.classList.add("route-active");
     _showRouteCard();
   }
 
@@ -248,6 +249,7 @@
     activeRoute   = null;
     routeDestName = "";
     EosMap.clearRoute();
+    document.body.classList.remove("route-active");
     _hideRouteCard();
   }
 
@@ -255,6 +257,14 @@
     document.getElementById("route-dest-name").textContent = routeDestName;
     document.getElementById("route-dist-text").textContent = _fmtDistance(activeRoute.distanceMeters);
     document.getElementById("route-eta-text").textContent  = _fmtDuration(activeRoute.durationSeconds);
+    const arrivalEl = document.getElementById("route-eta-arrival");
+    if (arrivalEl) {
+      const arrivalMs = Date.now() + activeRoute.durationSeconds * 1000;
+      const d  = new Date(arrivalMs);
+      const hh = d.getHours().toString().padStart(2, "0");
+      const mm = d.getMinutes().toString().padStart(2, "0");
+      arrivalEl.textContent = hh + ":" + mm;
+    }
     document.getElementById("route-card").classList.remove("hidden");
     _showGuidanceCard();
   }
@@ -304,8 +314,12 @@
     if (newMode === "nav") {
       EosMap.clearAirMarkers();
       refreshIndicators();
-      if (activeRoute) _showGuidanceCard();
+      if (activeRoute) {
+        document.body.classList.add("route-active");
+        _showGuidanceCard();
+      }
     } else {
+      document.body.classList.remove("route-active");
       UI.clearIndicators();
       refreshAirMode();
       _hideGuidanceCard();

@@ -4,28 +4,39 @@
  * Owns all camera state: pitch, bearing, zoom, padding, and easing.
  * app.js and map.js call into this; nothing outside reads camera state directly.
  *
+ * Camera states:
+ *   NAV_IDLE         — NAV mode, no active route; heading-based look-ahead.
+ *   NAV_ROUTE_ACTIVE — NAV mode, route loaded; camera follows route corridor.
+ *   AIR              — top-down north-up strategic overview.
+ *
  * NAV mode: low forward-looking driving perspective (Google Maps reference).
  *   User arrow anchors near the bottom of the screen (~78 % from top).
  *   Most useful screen space is the road ahead, not the area behind.
- * AIR mode: top-down north-up strategic overview.
  */
 
 const CameraController = (() => {
   let _map = null;
   let _currentBearing = 0; // smoothed bearing, degrees
 
+  // Route state
+  let _routeCoords    = null; // [lon,lat][] from active route geometry
+  let _navCameraState = "NAV_IDLE"; // NAV_IDLE | NAV_ROUTE_ACTIVE | AIR
+
   // ---- Camera presets ----
 
   const _NAV_DEFAULTS = {
-    pitch:               72,   // aggressive forward lean — windshield view
-    zoom:                19,   // tight street-level zoom
-    transitionMs:        900,
-    followMs:            300,  // snappy continuous follow
+    pitch:                72,    // aggressive forward lean — windshield view
+    zoom:                 18.5,  // tight street-level zoom
+    transitionMs:         900,
+    followMs:             300,   // snappy continuous follow
     // Top-padding as fraction of container height.
     // 0.73 → user marker sits ~86 % from top — very low screen anchor.
-    topPaddingFraction:  0.73,
-    smoothAlpha:         0.13, // heading low-pass; lower = smoother/laggier
-    lookAheadMeters:     120,  // project camera centre ahead of vehicle
+    topPaddingFraction:   0.73,
+    smoothAlpha:          0.13,  // heading low-pass; lower = smoother/laggier
+    lookAheadMeters:      120,   // heading-based look-ahead when no route
+    routeLookAheadMeters: 300,   // base route look-ahead (scaled by speed)
+    minLookAheadMeters:   80,
+    maxLookAheadMeters:   1200,
   };
 
   const AIR = {
@@ -62,27 +73,61 @@ const CameraController = (() => {
     };
   }
 
-  // Circular first-order low-pass — handles 0 / 360 wrap correctly.
+  // Circular first-order low-pass — handles 0/360 wrap correctly.
   function _smoothBearing(target) {
-    const cfg = _navConfig();
-    let delta = target - _currentBearing;
+    const cfg   = _navConfig();
+    let delta   = target - _currentBearing;
     if (delta >  180) delta -= 360;
     if (delta < -180) delta += 360;
     _currentBearing = (_currentBearing + cfg.smoothAlpha * delta + 360) % 360;
     return _currentBearing;
   }
 
-  // Project a point ahead of the vehicle along its heading.
+  // Project a point ahead of the vehicle along its heading (fallback when no route).
   function _projectAhead(lat, lon, heading, meters) {
     if (!meters) return { lat, lon };
-    const R   = 6371000;
-    const d   = meters / R;
-    const θ   = (heading * Math.PI) / 180;
-    const φ1  = (lat * Math.PI) / 180;
-    const λ1  = (lon * Math.PI) / 180;
-    const φ2  = Math.asin(Math.sin(φ1) * Math.cos(d) + Math.cos(φ1) * Math.sin(d) * Math.cos(θ));
-    const λ2  = λ1 + Math.atan2(Math.sin(θ) * Math.sin(d) * Math.cos(φ1), Math.cos(d) - Math.sin(φ1) * Math.sin(φ2));
+    const R  = 6371000;
+    const d  = meters / R;
+    const θ  = (heading * Math.PI) / 180;
+    const φ1 = (lat * Math.PI) / 180;
+    const λ1 = (lon * Math.PI) / 180;
+    const φ2 = Math.asin(Math.sin(φ1) * Math.cos(d) + Math.cos(φ1) * Math.sin(d) * Math.cos(θ));
+    const λ2 = λ1 + Math.atan2(Math.sin(θ) * Math.sin(d) * Math.cos(φ1), Math.cos(d) - Math.sin(φ1) * Math.sin(φ2));
     return { lat: φ2 * 180 / Math.PI, lon: λ2 * 180 / Math.PI };
+  }
+
+  // Dynamic look-ahead distance scaled to speed.
+  // urban/low: 80-150 m  |  medium: 200-400 m  |  fast/motorway: 600-1200 m
+  function _dynamicLookAhead(speedMph) {
+    const cfg = _navConfig();
+    if (!speedMph || speedMph < 3) return cfg.minLookAheadMeters;
+    // 6-second time horizon scaled to speed
+    const speedMs = speedMph * 0.44704;
+    const raw     = speedMs * 6;
+    return Math.max(cfg.minLookAheadMeters, Math.min(cfg.maxLookAheadMeters, raw));
+  }
+
+  // Camera centre target — route-aware when a route is active.
+  function _cameraTarget(lat, lon, heading, speedMph) {
+    const cfg = _navConfig();
+    if (_routeCoords && _routeCoords.length >= 2) {
+      const nearest   = RouteGeometry.nearestOnLine(_routeCoords, lon, lat);
+      const lookAhead = _dynamicLookAhead(speedMph) || cfg.routeLookAheadMeters;
+      const ahead     = RouteGeometry.projectAlong(_routeCoords, nearest.segIdx, nearest.t, lookAhead);
+      if (ahead) return { lat: ahead.lat, lon: ahead.lon };
+    }
+    // Fallback: heading-based look-ahead
+    return _projectAhead(lat, lon, heading, cfg.lookAheadMeters);
+  }
+
+  // Zoom level adapts to speed when a route is active — zoom out at highway speed.
+  function _navZoom(speedMph) {
+    const cfg = _navConfig();
+    if (!_routeCoords || !speedMph || speedMph < 5) return cfg.zoom;
+    const speedMs = speedMph * 0.44704;
+    // Gradually zoom out up to 2.5 levels at ~90 mph / 40 m/s
+    const offset  = Math.min(2.5, speedMs / 16);
+    return Math.max(14, cfg.zoom - offset);
   }
 
   // Cubic ease-out — fast start, gentle arrival. Good for continuous following.
@@ -93,6 +138,22 @@ const CameraController = (() => {
     return t < 0.5
       ? 4 * t * t * t
       : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  // ---- Route state API ----
+
+  function setRouteActive(geometry) {
+    _routeCoords    = (geometry && geometry.coordinates) ? geometry.coordinates : null;
+    _navCameraState = _routeCoords ? "NAV_ROUTE_ACTIVE" : "NAV_IDLE";
+  }
+
+  function clearRoute() {
+    _routeCoords    = null;
+    _navCameraState = "NAV_IDLE";
+  }
+
+  function getNavCameraState() {
+    return _navCameraState;
   }
 
   // ---- Dev config API ----
@@ -120,7 +181,7 @@ const CameraController = (() => {
   function refreshNavCamera(lat, lon, heading, duration) {
     if (!_map) return;
     const cfg    = _navConfig();
-    const target = _projectAhead(lat, lon, heading || _currentBearing, cfg.lookAheadMeters);
+    const target = _cameraTarget(lat, lon, heading || _currentBearing, 0);
     _map.easeTo({
       center:   [target.lon, target.lat],
       bearing:  _currentBearing,
@@ -135,18 +196,19 @@ const CameraController = (() => {
 
   /**
    * Smooth camera follow called on each GPS position update in NAV mode.
-   * Applies heading smoothing to suppress GPS bearing jitter.
+   * Applies heading smoothing and route-aware camera targeting.
+   * @param {number} speedMph  Optional — enables dynamic look-ahead scaling.
    */
-  function followNav(lat, lon, heading) {
+  function followNav(lat, lon, heading, speedMph) {
     if (!_map) return;
     const cfg    = _navConfig();
     const bear   = _smoothBearing(heading);
-    const target = _projectAhead(lat, lon, bear, cfg.lookAheadMeters);
+    const target = _cameraTarget(lat, lon, bear, speedMph);
     _map.easeTo({
       center:   [target.lon, target.lat],
       bearing:  bear,
       pitch:    cfg.pitch,
-      zoom:     cfg.zoom,
+      zoom:     _navZoom(speedMph),
       padding:  _navPadding(),
       duration: cfg.followMs,
       easing:   _easeOut,
@@ -161,7 +223,8 @@ const CameraController = (() => {
     if (!_map) return;
     const cfg    = _navConfig();
     _currentBearing = heading; // reset — don't interpolate from stale smoothed value
-    const target = _projectAhead(lat, lon, heading, cfg.lookAheadMeters);
+    _navCameraState  = _routeCoords ? "NAV_ROUTE_ACTIVE" : "NAV_IDLE";
+    const target = _cameraTarget(lat, lon, heading, 0);
     _map.easeTo({
       center:   [target.lon, target.lat],
       bearing:  heading,
@@ -179,6 +242,7 @@ const CameraController = (() => {
    */
   function transitionToAir(lat, lon) {
     if (!_map) return;
+    _navCameraState = "AIR";
     _map.easeTo({
       center:   [lon, lat],
       bearing:  0,
@@ -195,6 +259,9 @@ const CameraController = (() => {
     followNav,
     transitionToNav,
     transitionToAir,
+    setRouteActive,
+    clearRoute,
+    getNavCameraState,
     getNavCameraDefaults,
     getNavCameraConfig,
     setNavCameraConfig,
